@@ -1,0 +1,3 @@
+LogLineBuilder	KEYWORD1
+put	KEYWORD2
+getLine	KEYWORD2
