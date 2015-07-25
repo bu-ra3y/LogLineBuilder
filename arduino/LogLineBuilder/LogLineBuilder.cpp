@@ -10,7 +10,7 @@ String _s = "";
 LogLineBuilder::LogLineBuilder(){}
 
 void LogLineBuilder::put(String key, String value) {
-  if (s.length() > 0) {
+  if (_s.length() > 0) {
 	// If there is already data in the string
   	// then first add a comma
   	_s += ", ";
