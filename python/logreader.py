@@ -5,7 +5,7 @@
 #
 from collections import defaultdict
 import matplotlib.pyplot as plt
-
+import serial
 
 
 # This is our data store.
@@ -24,20 +24,45 @@ def printData():
     print("%s: %s" % (key, data[key]))
     print("")
 
+# Read in raw lines from a list
+def readInList(inputList):
+  for line in inputList:
+    processLine(line)
 
-# Read in the lines froma file and store them
-def readInput(inputFile):
-  with open(inputFile) as _inputFile:
-    for line in _inputFile:
-      # First split the line into key-value pairs
-      # The line looks like:
-      #   x 1, y 2, z 3.00, r 25.1
-      keyValues = line.split(",")
-      for key_value in keyValues:
+# Read in raw lines from a file
+def readInFile(inputFile):
+  with open(inputFile) as f:
+    for line in f:
+      processLine(line)
+
+# Read in raw lines from a serial device
+#  only reads in linesToRead lines (hacky!)
+def readInSerial(device, linesToRead):
+  with serial.Serial(device, 9600) as ser:
+    for i in range(linesToRead):
+      line = ser.readline().decode("utf-8")
+      processLine(line)
+
+
+# Process a line of data
+# The line is comma-separated key-value, string-float pairs like:
+#   x 1, y 2, z 3.00, r 25.1
+def processLine(line):  
+  # iterate over the comma-separated key-value pairs
+  for key_value in line.split(","):
+    # the split() function may throw excptions 
+    #  if it can't split the string.  this can happen when there 
+    #   is dirty data - in which case we continue 
+    try:
         # split the key and value on whitespace
         key, value = key_value.split()
+
         # insert the value into the list for the key
         data[key].append(float(value))
+    except ValueError:
+      continue
+      
+
 
 # Return all of the data
 def getData():
