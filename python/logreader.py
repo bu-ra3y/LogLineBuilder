@@ -5,6 +5,7 @@
 #
 from collections import defaultdict
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import serial
 
 
@@ -17,6 +18,23 @@ import serial
 # e.g.  angle -> (20.1, 19.8, 16.4, 15.2)
 #
 data = defaultdict(list)
+
+# This is where we keep track of the lines we're drawing
+lines = list()
+
+# and the set of axes
+axes_array = ()
+
+figure = None
+viewSize = 200
+
+# Are we debugging? (print stuff out)
+DEBUG = False
+
+# A simple method to only print something if debugging
+def debug(message, argumentList):
+  if(DEBUG):
+    print(message % argumentList)
 
 # Mainly a debugging function
 def printData():
@@ -43,7 +61,6 @@ def readInSerial(device, linesToRead):
       line = ser.readline().decode("utf-8")
       processLine(line)
 
-
 # Process a line of data
 # The line is comma-separated key-value, string-float pairs like:
 #   x 1, y 2, z 3.00, r 25.1
@@ -61,12 +78,19 @@ def processLine(line):
         data[key].append(float(value))
     except ValueError:
       continue
-      
-
 
 # Return all of the data
 def getData():
   return data
+
+# Plot the data, live, reading from a serial port
+def plotDataLiveFromSerial(pathToSerialDevice, plotConfig):
+  with serial.Serial(pathToSerialDevice, 9600) as ser:
+    processConfig(plotConfig)
+    animation.FuncAnimation(figure, update, fargs=[ser])
+    plt.show()
+
+
 
 # Chart the data using MatPlotLib
 def plotData(config):
@@ -98,9 +122,90 @@ def plotData(config):
         #  then plot it on the right axes
         axes_array[i].plot(x, y, label=key)
   
-  # Activate each legend
-  for axes in axes_array:
-    axes.legend()  
+  initializeAxes()
 
   # Display
   plt.show()
+
+
+
+
+# We process the config to initialize the plots
+# config contains 1 item for each intended subplot.
+#  the config is a list of list of metric-names:
+#  (
+#    ('x', 'y', 'z'),       # for subplot 0
+#    ('r', 'n')             # for subplot 1
+#  )
+#  the top level list corresponds to subplots
+#   each sub list contains the names of each metric that should be plotted in that subplot
+def processConfig(config):
+  #  The length of config should tell us how many subplots we want
+  num_subplots = len(config)
+
+  # Create a figure with several subplots
+  #  number of subplots according to the config
+  #  all subplots share the temporal axis (x)
+  global figure
+  global axes_array
+  figure, axes_array = plt.subplots(num_subplots, sharex=True)
+
+  # Now we ned to initialize each line
+  # Iterate over each subplot config
+  for subplot in range(len(config)):
+    # intialize a dict for this subplot
+    #  (the dict will be a metric->line mapping)
+    lines.append(dict())
+
+    # and iterate over each metric within
+    for metric in config[subplot]:
+      # plot an empty line to initialize, labeled with the metric name
+      line, = axes_array[subplot].plot([], [], label=metric)
+      # hold on to the line reference so that we can update the data 
+      #  later when animating
+      lines[subplot][metric] = line
+
+  initializeAxes()
+
+
+
+
+
+def initializeAxes():
+  for axes in axes_array:
+    axes.legend()
+    axes.get_yaxis().get_major_formatter().set_useOffset(False)  
+
+
+def updateAxes(frameNumber):
+  for axes in axes_array:
+    axes.relim()
+    axes.autoscale_view(False, False, True)
+    axes.set_xlim(frameNumber - viewSize, frameNumber)
+
+# Update the lines based on the new data
+def updateLines():  
+  # Iterate over each metric (named series)
+  for metric in data.keys():
+    # grab the data values for this series
+    y = data[metric]
+
+    # we have no x-axis reference, so 
+    #  we will simply plot each value incrementally
+    #  along the x-axis, starting at 0, going up
+    #  to len(y)
+    x = range(len(y))
+
+    # Find the correct lines to update
+    for subplot in range(len(lines)):
+      if metric in lines[subplot]:
+        # set the new data
+        lines[subplot][metric].set_data(x, y)
+
+def update(frameNumber, serialInput):
+  debug("Update %s", (frameNumber))
+  line = serialInput.readline().decode("utf-8")
+  processLine(line)
+  updateLines()
+  updateAxes(frameNumber)
+

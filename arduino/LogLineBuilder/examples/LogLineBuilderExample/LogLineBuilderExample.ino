@@ -9,8 +9,8 @@ void setup() {
 }
 
 void loop() {
-  int r = random();           // create some data...
-  int t = millis();
+  long r = random();           // create some data...
+  long t = millis();
   int x = 5;
 
   LogLineBuilder builder = LogLineBuilder();      // Create a LogLineBuilder
