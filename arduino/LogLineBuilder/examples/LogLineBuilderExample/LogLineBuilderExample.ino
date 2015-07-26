@@ -18,5 +18,5 @@ void loop() {
   builder.put("rand", r);                 // put in a metric-value pair
   builder.put("x", x);                    // put in a metric-value pair
   Serial.println(builder.getLine());              // get the line of all the data ready for logging
-  delay(1000);                              // Wait 1s for good measure
+  delay(300);                              // Wait before looping
 }
